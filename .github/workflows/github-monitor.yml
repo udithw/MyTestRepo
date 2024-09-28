@@ -29,10 +29,15 @@ jobs:
           # Check for log files and sensitive data in attachments
           SENSITIVE_DATA_FOUND=false
           for attachment in $ATTACHMENTS; do
-            if echo "$attachment" | grep -q -E '(log|token|api key|password)'; then
-              SENSITIVE_DATA_FOUND=true
-              break
-            fi
+            attachment_name=$(echo "$attachment" | jq -r '.name')
+            if echo "$attachment_name" | grep -q -E '\.log$'; then
+              # Check for sensitive data in log file
+              attachment_content=$(curl -s -H "Authorization: Bearer $GITHUB_TOKEN" \
+                https://api.github.com/repos/${GITHUB_REPO}/issues/${ISSUE_OR_PR}/attachments/${attachment_name})
+              if echo "$attachment_content" | grep -q -E '(token|api key|password)'; then
+                SENSITIVE_DATA_FOUND=true
+                break
+              fi
           done
 
           # If sensitive data is found, prompt the user to review and generate an email
@@ -41,12 +46,12 @@ jobs:
             curl -s -H "Authorization: Bearer $GITHUB_TOKEN" \
               https://api.github.com/repos/${GITHUB_REPO}/issues/${ISSUE_OR_PR}/comments \
               -X POST -H "Content-Type: application/json" \
-              -d '{"body": "Sensitive data detected in attachment. Please review and remove if necessary."}'
+              -d '{"body": "Sensitive data detected in attachment. Please inform security team immidiately. Do not delete content."}'
 
             # Generate email notification
             echo "Sending email notification..."
             curl -s -H "Authorization: Bearer $GITHUB_TOKEN" \
               https://api.github.com/repos/${GITHUB_REPO}/issues/${ISSUE_OR_PR}/notifications \
               -X POST -H "Content-Type: application/json" \
-              -d '{"subject": "Sensitive data detected in attachment", "body": "Please review and remove if necessary."}'
+              -d '{"subject": "Sensitive data detected in attachment", "body": "Sensitive data detected in attachment. Please inform security team immidiately. Do not delete content."}'
           fi
