@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@main
 
       - name: Monitor logs and sensitive data
         env:
@@ -28,7 +28,7 @@ jobs:
 
           # Check for log files and sensitive data in attachments
           SENSITIVE_DATA_FOUND=false
-          for attachment in $ATTACHMENTS; do
+          for attachment in $(echo "$ATTACHMENTS" | jq -c '.[]'); do
             attachment_name=$(echo "$attachment" | jq -r '.name')
             if echo "$attachment_name" | grep -q -E '\.log$'; then
               # Check for sensitive data in log file
